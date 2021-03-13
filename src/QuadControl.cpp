@@ -184,13 +184,7 @@ float QuadControl::AltitudeControl(float posZCmd, float velZCmd, float posZ, flo
   // Calculate desired quad thrust based on altitude setpoint, actual altitude,
   //   vertical velocity setpoint, actual vertical velocity, and a vertical 
   //   acceleration feed-forward command
-  // INPUTS: 
-  //   posZCmd, velZCmd: desired vertical position and velocity in NED [m]
-  //   posZ, velZ: current vertical position and velocity in NED [m]
-  //   accelZCmd: feed-forward vertical acceleration in NED [m/s2]
-  //   dt: the time step of the measurements [seconds]
-  // OUTPUT:
-  //   return a collective thrust command in [N]
+ 
 
   // HINTS: 
   //  - we already provide rotation matrix R: to get element R[1,2] (python) use R(1,2) (C++)
@@ -203,8 +197,34 @@ float QuadControl::AltitudeControl(float posZCmd, float velZCmd, float posZ, flo
   float thrust = 0;
 
   ////////////////////////////// BEGIN STUDENT CODE ///////////////////////////
+    // INPUTS:
+    //   posZCmd, velZCmd: desired vertical position and velocity in NED [m]
+    //   posZ, velZ: current vertical position and velocity in NED [m]
+    //   accelZCmd: feed-forward vertical acceleration in NED [m/s2]
+    //   dt: the time step of the measurements [seconds]
+    // OUTPUT:
+    //   return a collective thrust command in [N]
+    
+    
 
+    float pos_err, vel_err, vel_cmd, acc_cmd;
 
+    pos_err = posZCmd - posZ;
+    
+    integratedAltitudeError += pos_err * dt;
+    
+    vel_cmd = kpPosZ * pos_err + velZCmd;
+
+    vel_cmd = CONSTRAIN(vel_cmd, -maxAscentRate, maxDescentRate);
+    
+    vel_err = vel_cmd - velZ;
+
+    acc_cmd = kpVelZ * vel_err + accelZCmd + KiPosZ * integratedAltitudeError;
+    
+    thrust = mass * (CONST_GRAVITY - acc_cmd)/ R(2,2);
+    
+    thrust = CONSTRAIN(thrust, 4*minMotorThrust, 4*maxMotorThrust);
+    
 
   /////////////////////////////// END STUDENT CODE ////////////////////////////
   
