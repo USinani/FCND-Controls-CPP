@@ -236,15 +236,7 @@ V3F QuadControl::LateralPositionControl(V3F posCmd, V3F velCmd, V3F pos, V3F vel
 {
   // Calculate a desired horizontal acceleration based on 
   //  desired lateral position/velocity/acceleration and current pose
-  // INPUTS: 
-  //   posCmd: desired position, in NED [m]
-  //   velCmd: desired velocity, in NED [m/s]
-  //   pos: current position, NED [m]
-  //   vel: current velocity, NED [m/s]
-  //   accelCmdFF: feed-forward acceleration, NED [m/s2]
-  // OUTPUT:
-  //   return a V3F with desired horizontal accelerations. 
-  //     the Z component should be 0
+
   // HINTS: 
   //  - use the gain parameters kpPosXY and kpVelXY
   //  - make sure you limit the maximum horizontal velocity and acceleration
@@ -262,7 +254,29 @@ V3F QuadControl::LateralPositionControl(V3F posCmd, V3F velCmd, V3F pos, V3F vel
 
   ////////////////////////////// BEGIN STUDENT CODE ///////////////////////////
 
-  
+    // INPUTS:
+    //   posCmd: desired position, in NED [m]
+    //   velCmd: desired velocity, in NED [m/s]
+    //   pos: current position, NED [m]
+    //   vel: current velocity, NED [m/s]
+    //   accelCmdFF: feed-forward acceleration, NED [m/s2]
+    // OUTPUT:
+    //   return a V3F with desired horizontal accelerations.
+    //     the Z component should be 0
+    
+    V3F vel_cmd;
+    
+    vel_cmd = kpPosXY * (posCmd - pos) + velCmd;
+    if (vel_cmd.mag() > maxSpeedXY){
+        
+        vel_cmd = vel_cmd.norm() * maxSpeedXY;
+    }
+    
+    accelCmd += kpVelXY * (vel_cmd - vel);
+    accelCmd.z = 0;
+    if (accelCmd.mag() > maxAccelXY ){
+        accelCmd = accelCmd.norm() * maxAccelXY;
+    }
 
   /////////////////////////////// END STUDENT CODE ////////////////////////////
 
