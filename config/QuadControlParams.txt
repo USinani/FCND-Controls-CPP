@@ -23,7 +23,7 @@ maxMotorThrust = 4.5
 kpPosXY = 2.3
 kpPosZ = 3.01
 KiPosZ = 28.3
-
+// Tuned
 # Velocity control gains
 kpVelXY = 10.3
 kpVelZ = 10.1
