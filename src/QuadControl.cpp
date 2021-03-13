@@ -58,12 +58,7 @@ VehicleCommand QuadControl::GenerateMotorCommands(float collThrustCmd, V3F momen
 {
   // Convert a desired 3-axis moment and collective thrust command to 
   //   individual motor thrust commands
-  // INPUTS: 
-  //   collThrustCmd: desired collective thrust [N]
-  //   momentCmd: desired rotation moment about each axis [N m]
-  // OUTPUT:
-  //   set class member variable cmd (class variable for graphing) where
-  //   cmd.desiredThrustsN[0..3]: motor commands, in [N]
+
 
   // HINTS: 
   // - you can access parts of momentCmd via e.g. momentCmd.x
@@ -71,10 +66,33 @@ VehicleCommand QuadControl::GenerateMotorCommands(float collThrustCmd, V3F momen
 
   ////////////////////////////// BEGIN STUDENT CODE ///////////////////////////
 
-  cmd.desiredThrustsN[0] = mass * 9.81f / 4.f; // front left
-  cmd.desiredThrustsN[1] = mass * 9.81f / 4.f; // front right
-  cmd.desiredThrustsN[2] = mass * 9.81f / 4.f; // rear left
-  cmd.desiredThrustsN[3] = mass * 9.81f / 4.f; // rear right
+    float X, Y, Z, S;
+    float l = L/sqrtf(2.f);
+    float F, F1, F2, F3;
+    
+  // INPUTS:
+  //   collThrustCmd: desired collective thrust [N]
+    S = collThrustCmd/4.f;
+    
+  //   momentCmd: desired rotation moment about each axis [N m]
+    X = momentCmd.x/(l*4.f);
+    Y = momentCmd.y/(l*4.f);
+    Z = momentCmd.z/(kappa*4.f);
+    
+    F = S + X + Y - Z;
+    F1 = S - X + Y + Z;
+    F2 = S + X - Y + Z;
+    F3 = S - X - Y - Z;
+    
+    // OUTPUT:
+  //   set class member variable cmd (class variable for graphing) where
+  //   cmd.desiredThrustsN[0..3]: motor commands, in [N]
+    
+    
+  cmd.desiredThrustsN[0] = F; // front left
+  cmd.desiredThrustsN[1] = F1; // front right
+  cmd.desiredThrustsN[2] = F2; // rear left
+  cmd.desiredThrustsN[3] = F3; // rear right
 
   /////////////////////////////// END STUDENT CODE ////////////////////////////
 
@@ -83,23 +101,34 @@ VehicleCommand QuadControl::GenerateMotorCommands(float collThrustCmd, V3F momen
 
 V3F QuadControl::BodyRateControl(V3F pqrCmd, V3F pqr)
 {
-  // Calculate a desired 3-axis moment given a desired and current body rate
-  // INPUTS: 
-  //   pqrCmd: desired body rates [rad/s]
-  //   pqr: current or estimated body rates [rad/s]
-  // OUTPUT:
-  //   return a V3F containing the desired moments for each of the 3 axes
 
   // HINTS: 
   //  - you can use V3Fs just like scalars: V3F a(1,1,1), b(2,3,4), c; c=a-b;
   //  - you'll need parameters for moments of inertia Ixx, Iyy, Izz
   //  - you'll also need the gain parameter kpPQR (it's a V3F)
 
-  V3F momentCmd;
+    V3F momentCmd;
 
   ////////////////////////////// BEGIN STUDENT CODE ///////////////////////////
 
-  
+    // Calculate a desired 3-axis moment given a desired and current body rate
+    // INPUTS:
+      float pdot_cmd, qdot_cmd, rdot_cmd;
+      float tau_cmd[3];
+    //   pqrCmd: desired body rates [rad/s]
+      pdot_cmd = kpPQR.x * (pqrCmd.x - pqr.x);
+      qdot_cmd = kpPQR.y * (pqrCmd.y - pqr.y);
+      rdot_cmd = kpPQR.z * (pqrCmd.z - pqr.z);
+      
+    //   pqr: current or estimated body rates [rad/s]
+      tau_cmd[0] = Ixx * pdot_cmd;
+      tau_cmd[1] = Iyy * qdot_cmd;
+      tau_cmd[2] = Izz * rdot_cmd;
+      
+    // OUTPUT:
+    //   return a V3F containing the desired moments for each of the 3 axes
+      momentCmd = tau_cmd;
+      
 
   /////////////////////////////// END STUDENT CODE ////////////////////////////
 
@@ -112,14 +141,7 @@ V3F QuadControl::RollPitchControl(V3F accelCmd, Quaternion<float> attitude, floa
   // Calculate a desired pitch and roll angle rates based on a desired global
   //   lateral acceleration, the current attitude of the quad, and desired
   //   collective thrust command
-  // INPUTS: 
-  //   accelCmd: desired acceleration in global XY coordinates [m/s2]
-  //   attitude: current or estimated attitude of the vehicle
-  //   collThrustCmd: desired collective thrust of the quad [N]
-  // OUTPUT:
-  //   return a V3F containing the desired pitch and roll rates. The Z
-  //     element of the V3F should be left at its default value (0)
-
+  
   // HINTS: 
   //  - we already provide rotation matrix R: to get element R[1,2] (python) use R(1,2) (C++)
   //  - you'll need the roll/pitch gain kpBank
@@ -129,6 +151,26 @@ V3F QuadControl::RollPitchControl(V3F accelCmd, Quaternion<float> attitude, floa
   Mat3x3F R = attitude.RotationMatrix_IwrtB();
 
   ////////////////////////////// BEGIN STUDENT CODE ///////////////////////////
+
+    // INPUTS:
+    //   accelCmd: desired acceleration in global XY coordinates [m/s2]
+    //   attitude: current or estimated attitude of the vehicle
+    //   collThrustCmd: desired collective thrust of the quad [N]
+    // OUTPUT:
+    //   return a V3F containing the desired pitch and roll rates. The Z
+    //     element of the V3F should be left at its default value (0)
+    
+    float c = - collThrustCmd / mass;
+    float b_x, b_y;
+    float b_x_dot, b_y_dot;
+    
+    b_x = CONSTRAIN((accelCmd.x / c), -sin(maxTiltAngle), sin(maxTiltAngle));
+    b_y = CONSTRAIN((accelCmd.y / c), -sin(maxTiltAngle), sin(maxTiltAngle));
+    b_x_dot = kpBank * (b_x - R (0,2));
+    b_y_dot = kpBank * (b_y - R (1,2));
+
+    pqrCmd.x = (R(1,0) * b_x_dot - R(0,0) * b_y_dot) / R(2,2);
+    pqrCmd.y = (R(1,1) * b_x_dot - R(0,1) * b_y_dot) / R(2,2);
 
 
 
